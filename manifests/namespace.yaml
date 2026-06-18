@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: owl-scheduler-system
+  labels:
+    app.kubernetes.io/name: owl-scheduler
+    app.kubernetes.io/managed-by: manual
+    kubernetes.io/metadata.name: owl-scheduler-system

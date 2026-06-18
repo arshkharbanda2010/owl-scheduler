@@ -1,0 +1,11 @@
+{{- /*
+  Namespace for the owl-scheduler system
+*/}}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ include "k8s-scheduler.name" . }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    kubernetes.io/metadata.name: {{ .Release.Namespace }}

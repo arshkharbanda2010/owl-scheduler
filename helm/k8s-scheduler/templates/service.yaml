@@ -1,0 +1,24 @@
+{{- /*
+  Service for health and metrics endpoints
+*/}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "k8s-scheduler.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "k8s-scheduler.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "k8s-scheduler.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: health
+      port: {{ .Values.service.healthPort }}
+      targetPort: health
+      protocol: TCP
+    - name: metrics
+      port: {{ .Values.service.metricsPort }}
+      targetPort: metrics
+      protocol: TCP
+  clusterIP: None

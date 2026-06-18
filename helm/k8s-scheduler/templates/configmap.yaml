@@ -1,0 +1,69 @@
+{{- /*
+  ConfigMap containing the scheduler configuration
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "k8s-scheduler.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "k8s-scheduler.labels" . | nindent 4 }}
+data:
+  scheduler-config.yaml: |
+    apiVersion: {{ .Values.schedulerConfig.apiVersion }}
+    kind: {{ .Values.schedulerConfig.kind }}
+    leaderElection:
+      leaderElect: {{ .Values.leaderElection.enabled }}
+      leaseDuration: {{ .Values.leaderElection.leaseDuration }}
+      renewDeadline: {{ .Values.leaderElection.renewDeadline }}
+      retryPeriod: {{ .Values.leaderElection.retryPeriod }}
+      resourceLock: leases
+      resourceNamespace: {{ .Values.leaderElection.resourceNamespace }}
+      resourceName: {{ .Values.leaderElection.resourceName }}
+    profiles:
+{{- range .Values.schedulerConfig.profiles }}
+      - schedulerName: {{ .schedulerName }}
+        plugins:
+          preFilter:
+            enabled:
+{{- range .plugins.preFilter.enabled }}
+              - name: {{ .name }}
+{{- end }}
+          filter:
+            enabled:
+{{- range .plugins.filter.enabled }}
+              - name: {{ .name }}
+{{- end }}
+          postFilter:
+            enabled:
+{{- range .plugins.postFilter.enabled }}
+              - name: {{ .name }}
+{{- end }}
+          score:
+            enabled:
+{{- range .plugins.score.enabled }}
+              - name: {{ .name }}
+                weight: {{ .weight }}
+{{- end }}
+          reserve:
+            enabled:
+{{- range .plugins.reserve.enabled }}
+              - name: {{ .name }}
+{{- end }}
+          preScore:
+            enabled:
+{{- range .plugins.preScore.enabled }}
+              - name: {{ .name }}
+{{- end }}
+          bind:
+            enabled:
+{{- range .plugins.bind.enabled }}
+              - name: {{ .name }}
+{{- end }}
+        pluginConfig:
+{{- range .plugins.pluginConfig }}
+          - name: {{ .name }}
+            args:
+              {{- toYaml .args | nindent 14 }}
+{{- end }}
+{{- end }}

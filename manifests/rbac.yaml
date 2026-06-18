@@ -1,0 +1,123 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: owl-scheduler
+  namespace: owl-scheduler-system
+  labels:
+    app.kubernetes.io/name: owl-scheduler
+    app.kubernetes.io/part-of: owl-scheduler
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: owl-scheduler
+  labels:
+    app.kubernetes.io/name: owl-scheduler
+    app.kubernetes.io/part-of: owl-scheduler
+rules:
+  # ---- Pod scheduling permissions ----
+  # Watch unscheduled pods so the scheduler knows what needs placement
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  # Create bindings (Pod -> Node) after scoring and filtering
+  - apiGroups: [""]
+    resources: ["pods/binding"]
+    verbs: ["create"]
+  # Read pod status for rescheduling logic
+  - apiGroups: [""]
+    resources: ["pods/status"]
+    verbs: ["update", "patch"]
+
+  # ---- Node permissions ----
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+
+  # ---- PriorityClass permissions ----
+  - apiGroups: ["scheduling.k8s.io"]
+    resources: ["priorityclasses"]
+    verbs: ["get", "list", "watch"]
+
+  # ---- Resource quota / limit range awareness ----
+  - apiGroups: [""]
+    resources: ["resourcequotas"]
+    verbs: ["get", "list", "watch"]
+
+  # ---- Events (scheduler emits events for scheduling decisions) ----
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch", "update"]
+
+  # ---- PVC awareness (topology / volume binding) ----
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims", "persistentvolumes"]
+    verbs: ["get", "list", "watch"]
+
+  # ---- ConfigMaps in scheduler namespace (leader election lock etc.) ----
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+    # Restricted to the scheduler namespace via RoleBinding below
+    resourceNamespaces: []  # all namespaces for leader election configmap access
+
+  # ---- Lease for leader election ----
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+  # ---- Namespace awareness ----
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: owl-scheduler
+  labels:
+    app.kubernetes.io/name: owl-scheduler
+    app.kubernetes.io/part-of: owl-scheduler
+subjects:
+  - kind: ServiceAccount
+    name: owl-scheduler
+    namespace: owl-scheduler-system
+roleRef:
+  kind: ClusterRole
+  name: owl-scheduler
+  apiGroup: rbac.authorization.k8s.io
+---
+# Scope the leader election lease & configmap to the scheduler namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: owl-scheduler-leader-election
+  namespace: owl-scheduler-system
+  labels:
+    app.kubernetes.io/name: owl-scheduler
+    app.kubernetes.io/part-of: owl-scheduler
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: owl-scheduler-leader-election
+  namespace: owl-scheduler-system
+  labels:
+    app.kubernetes.io/name: owl-scheduler
+    app.kubernetes.io/part-of: owl-scheduler
+subjects:
+  - kind: ServiceAccount
+    name: owl-scheduler
+    namespace: owl-scheduler-system
+roleRef:
+  kind: Role
+  name: owl-scheduler-leader-election
+  apiGroup: rbac.authorization.k8s.io

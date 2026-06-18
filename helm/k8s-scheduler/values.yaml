@@ -1,0 +1,177 @@
+# =============================================================================
+# Default values for owl-scheduler Helm chart
+# =============================================================================
+
+# -- Number of scheduler replicas (set to 1 to disable HA)
+replicaCount: 2
+
+image:
+  # -- Container image repository
+  repository: owl-scheduler
+  # -- Container image tag
+  tag: "0.1.0"
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+  # -- Image pull secrets (if using a private registry)
+  pullSecrets: []
+
+# -- Override the chart name used in resource metadata
+nameOverride: ""
+# -- Override the full resource name (defaults to "<release>-k8s-scheduler")
+fullnameOverride: ""
+
+serviceAccount:
+  # -- Create a ServiceAccount
+  create: true
+  # -- Annotations to add to the ServiceAccount
+  annotations: {}
+  # -- Override the ServiceAccount name
+  name: ""
+
+# -- Annotations added to every pod
+podAnnotations: {}
+
+# -- Pod-level security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+# -- Container-level security context
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# -- Resource requests and limits for the scheduler container
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# -- Node selector for scheduling the scheduler pods
+nodeSelector: {}
+
+# -- Tolerations for the scheduler pods
+tolerations: []
+
+# -- Affinity rules (defaults to anti-affinity across nodes)
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: owl-scheduler
+          topologyKey: kubernetes.io/hostname
+
+# -- PriorityClassName for the scheduler pods
+priorityClassName: system-cluster-critical
+
+# -- Service configuration
+service:
+  type: ClusterIP
+  healthPort: 10259
+  metricsPort: 9443
+
+# -- Leader election configuration
+leaderElection:
+  enabled: true
+  leaseDuration: 15s
+  renewDeadline: 10s
+  retryPeriod: 2s
+  resourceNamespace: owl-scheduler-system
+  resourceName: owl-scheduler
+
+# -- Scheduler configuration (rendered into the ConfigMap)
+schedulerConfig:
+  apiVersion: kubescheduler.config.k8s.io/v1
+  kind: KubeSchedulerConfiguration
+  profiles:
+    - schedulerName: owl-scheduler
+      plugins:
+        preFilter:
+          enabled:
+            - name: NodeResourcesFit
+            - name: NodePorts
+            - name: InterPodAffinity
+        filter:
+          enabled:
+            - name: NodeResourcesFit
+            - name: NodePorts
+            - name: NodeAffinity
+            - name: InterPodAffinity
+            - name: TaintToleration
+        postFilter:
+          enabled:
+            - name: DefaultPreemption
+        score:
+          enabled:
+            - name: NodeResourcesFit
+              weight: 1
+            - name: InterPodAffinity
+              weight: 1
+            - name: NodeAffinity
+              weight: 1
+            - name: ImageLocality
+              weight: 1
+        reserve:
+          enabled:
+            - name: VolumeBinding
+        preScore:
+          enabled:
+            - name: InterPodAffinity
+            - name: TaintToleration
+        bind:
+          enabled:
+            - name: DefaultBinder
+      pluginConfig:
+        - name: NodeResourcesFit
+          args:
+            scoringStrategy:
+              type: MostAllocated
+              resources:
+                - name: cpu
+                  weight: 1
+                - name: memory
+                  weight: 1
+        - name: InterPodAffinity
+          args:
+            hardPodAffinityWeight: 1
+
+# -- PriorityClass definitions to create
+priorityClasses:
+  enabled: true
+  classes:
+    - name: owl-critical
+      value: 1000000
+      description: "Critical workloads — highest priority"
+      globalDefault: false
+    - name: owl-high
+      value: 100000
+      description: "High-priority workloads"
+      globalDefault: false
+    - name: owl-normal
+      value: 1000
+      description: "Normal-priority workloads"
+      globalDefault: false
+    - name: owl-low
+      value: 100
+      description: "Low-priority / best-effort workloads"
+      globalDefault: false
+
+# -- Prometheus ServiceMonitor (requires prometheus-operator)
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  path: /metrics
+  labels: {}

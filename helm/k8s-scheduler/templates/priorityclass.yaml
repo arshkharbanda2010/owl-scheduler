@@ -1,0 +1,18 @@
+{{- /*
+  PriorityClasses for owl-scheduler
+*/}}
+{{- if .Values.priorityClasses.enabled }}
+{{- range .Values.priorityClasses.classes }}
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: {{ .name }}
+  labels:
+    {{- include "k8s-scheduler.labels" $ | nindent 4 }}
+value: {{ .value }}
+globalDefault: {{ .globalDefault }}
+description: {{ .description | quote }}
+preemptionPolicy: PreemptLowerPriority
+{{- end }}
+{{- end }}

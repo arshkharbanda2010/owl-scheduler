@@ -1,0 +1,224 @@
+# =============================================================================
+# test-scheduler.yaml — Test manifests to verify owl-scheduler works correctly
+#
+# Usage:
+#   kubectl apply -f test-scheduler.yaml
+#   kubectl get pods -w -l test=owl-scheduler
+#   kubectl describe pod <pod-name>  # Check Events for schedulerName
+#   kubectl delete -f test-scheduler.yaml
+# =============================================================================
+
+---
+# Test namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: owl-scheduler-test
+  labels:
+    test: owl-scheduler
+
+---
+# ---- Test 1: Critical priority pod ----
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-critical-pod
+  namespace: owl-scheduler-test
+  labels:
+    test: owl-scheduler
+    priority: critical
+spec:
+  schedulerName: owl-scheduler
+  priorityClassName: owl-critical
+  containers:
+    - name: busybox
+      image: busybox:1.36
+      command: ["sh", "-c", "echo 'Critical pod running'; sleep 3600"]
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+
+---
+# ---- Test 2: High priority pod ----
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-high-pod
+  namespace: owl-scheduler-test
+  labels:
+    test: owl-scheduler
+    priority: high
+spec:
+  schedulerName: owl-scheduler
+  priorityClassName: owl-high
+  containers:
+    - name: busybox
+      image: busybox:1.36
+      command: ["sh", "-c", "echo 'High priority pod running'; sleep 3600"]
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+
+---
+# ---- Test 3: Normal priority pod ----
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-normal-pod
+  namespace: owl-scheduler-test
+  labels:
+    test: owl-scheduler
+    priority: normal
+spec:
+  schedulerName: owl-scheduler
+  priorityClassName: owl-normal
+  containers:
+    - name: busybox
+      image: busybox:1.36
+      command: ["sh", "-c", "echo 'Normal priority pod running'; sleep 3600"]
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+
+---
+# ---- Test 4: Low priority pod ----
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-low-pod
+  namespace: owl-scheduler-test
+  labels:
+    test: owl-scheduler
+    priority: low
+spec:
+  schedulerName: owl-scheduler
+  priorityClassName: owl-low
+  containers:
+    - name: busybox
+      image: busybox:1.36
+      command: ["sh", "-c", "echo 'Low priority pod running'; sleep 3600"]
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+
+---
+# ---- Test 5: Pod with node affinity ----
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-affinity-pod
+  namespace: owl-scheduler-test
+  labels:
+    test: owl-scheduler
+    test-type: affinity
+spec:
+  schedulerName: owl-scheduler
+  priorityClassName: owl-normal
+  containers:
+    - name: busybox
+      image: busybox:1.36
+      command: ["sh", "-c", "echo 'Affinity pod running'; sleep 3600"]
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                  - linux
+
+---
+# ---- Test 6: Pod with resource pressure (should trigger preemption) ----
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-preempt-pod
+  namespace: owl-scheduler-test
+  labels:
+    test: owl-scheduler
+    test-type: preemption
+spec:
+  schedulerName: owl-scheduler
+  priorityClassName: owl-critical
+  containers:
+    - name: busybox
+      image: busybox:1.36
+      command: ["sh", "-c", "echo 'Preemption test pod running'; sleep 3600"]
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+
+---
+# ---- Test 7: Batch of pods to test scheduling throughput ----
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-batch-deployment
+  namespace: owl-scheduler-test
+  labels:
+    test: owl-scheduler
+    test-type: batch
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: test-batch
+  template:
+    metadata:
+      labels:
+        app: test-batch
+        test: owl-scheduler
+    spec:
+      schedulerName: owl-scheduler
+      priorityClassName: owl-normal
+      containers:
+        - name: busybox
+          image: busybox:1.36
+          command: ["sh", "-c", "echo 'Batch pod running'; sleep 3600"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+
+---
+# ---- Verification commands (as comments) ----
+# Check all test pods are scheduled by owl-scheduler:
+#   kubectl get pods -n owl-scheduler-test -o wide
+#
+# Verify scheduler name in events:
+#   kubectl describe pod test-critical-pod -n owl-scheduler-test | grep -A2 "Scheduled"
+#
+# Check scheduler logs:
+#   kubectl logs -n owl-scheduler-system -l app.kubernetes.io/name=owl-scheduler --tail=50
+#
+# Verify priority ordering:
+#   kubectl get pods -n owl-scheduler-test \
+#     -o custom-columns='NAME:.metadata.name,PRIORITY:.spec.priorityClassName,NODE:.spec.nodeName,STATUS:.status.phase'
+#
+# Cleanup:
+#   kubectl delete namespace owl-scheduler-test

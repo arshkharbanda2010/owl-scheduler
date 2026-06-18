@@ -1,0 +1,17 @@
+apiVersion: v2
+name: k8s-scheduler
+description: A Helm chart for deploying the owl-scheduler — a custom Kubernetes scheduler with priority-based scheduling, leader election, and HA support.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - kubernetes
+  - scheduler
+  - custom-scheduler
+  - owl-scheduler
+  - scheduling
+  - priority
+maintainers:
+  - name: OWL Team
+    email: team@zoo.example.com
+icon: https://raw.githubusercontent.com/kubernetes/kubernetes/master/logo/logo.png

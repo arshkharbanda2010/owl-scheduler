@@ -1,0 +1,48 @@
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: owl-critical
+  labels:
+    app.kubernetes.io/name: owl-scheduler
+    app.kubernetes.io/part-of: owl-scheduler
+value: 1000000
+globalDefault: false
+description: "Critical workloads managed by owl-scheduler. Highest priority — preempts all lower-priority pods."
+preemptionPolicy: PreemptLowerPriority
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: owl-high
+  labels:
+    app.kubernetes.io/name: owl-scheduler
+    app.kubernetes.io/part-of: owl-scheduler
+value: 100000
+globalDefault: false
+description: "High-priority workloads managed by owl-scheduler. Preempts normal and low priority pods."
+preemptionPolicy: PreemptLowerPriority
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: owl-normal
+  labels:
+    app.kubernetes.io/name: owl-scheduler
+    app.kubernetes.io/part-of: owl-scheduler
+value: 1000
+globalDefault: false
+description: "Normal-priority workloads managed by owl-scheduler. Default for most application pods."
+preemptionPolicy: PreemptLowerPriority
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: owl-low
+  labels:
+    app.kubernetes.io/name: owl-scheduler
+    app.kubernetes.io/part-of: owl-scheduler
+value: 100
+globalDefault: false
+description: "Low-priority / best-effort workloads managed by owl-scheduler. First to be preempted."
+preemptionPolicy: PreemptLowerPriority
